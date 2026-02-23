@@ -7,10 +7,11 @@ const config = {
   moduleFileExtensions: ['ts', 'js', 'json'],
   collectCoverageFrom: ['src/**/*.ts'],
   coverageDirectory: 'coverage',
+  setupFiles: ['<rootDir>/tests/jest.setup.ts'],
   verbose: true,
   forceExit: true,
   clearMocks: true,
-  resetMocks: true,
+  resetMocks: false,
   restoreMocks: true,
 };
 

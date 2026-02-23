@@ -1,5 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { ZodError, ZodIssue } from 'zod';
+import { ZodError } from 'zod';
+import { sendApiResponse } from '../routes/_shared/response.utils';
+
+import { env } from '../config/env';
 
 export interface AppError extends Error {
   message: string;
@@ -24,49 +27,45 @@ export function isAppError(error: unknown): error is AppError {
   );
 }
 
-interface ErrorResponse {
-  error: {
-    message: string;
-    code: string;
-    statusCode: number;
-  };
-}
-
 export function errorHandler(
   err: Error,
   _req: Request,
-  res: Response<ErrorResponse>,
+  res: Response,
   _next: NextFunction
 ): void {
   if (err instanceof ZodError) {
-    const message = err.issues.map((e: ZodIssue) => `${e.path.join('.')}: ${e.message}`).join(', ');
-    res.status(400).json({
-      error: {
-        message,
-        code: 'VALIDATION_ERROR',
-        statusCode: 400,
+    sendApiResponse(res, {
+      statusCode: 400,
+      alert: 'negative',
+      title: 'Error de validación',
+      message: 'Los datos enviados son invalidos.',
+      data: {
+        errors: err.issues.map((issue) => ({
+          field: issue.path.join('.') || 'root',
+          message: issue.message,
+        })),
       },
     });
     return;
   }
 
   if (isAppError(err)) {
-    res.status(err.statusCode).json({
-      error: {
-        message: err.message,
-        code: err.code,
-        statusCode: err.statusCode,
-      },
+    sendApiResponse(res, {
+      statusCode: err.statusCode,
+      alert: err.statusCode >= 500 ? 'negative' : 'warning',
+      title: 'Error de aplicación',
+      message: err.message,
+      data: { code: err.code },
     });
     return;
   }
 
   console.error('Unhandled error:', err);
-  res.status(500).json({
-    error: {
-      message: 'Internal server error',
-      code: 'INTERNAL_ERROR',
-      statusCode: 500,
-    },
+  sendApiResponse(res, {
+    statusCode: 500,
+    alert: 'negative',
+    title: 'Error interno',
+    message: 'Ha ocurrido un error inesperado en el servidor.',
+    data: env.NODE_ENV === 'development' ? { stack: err.stack, originalError: err.message } : null,
   });
 }

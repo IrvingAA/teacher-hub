@@ -1,32 +1,37 @@
-import { Router, Request, Response } from 'express';
-import mongoose from 'mongoose';
-import { AppDataSource } from '../config/database.pg';
-import { getRedisStatus, RedisStatus } from '../config/redis';
+import { Router } from 'express';
+import { requireAuth, requireGlobalOwner } from '../middlewares/auth';
+import { requireApiKey } from '../middlewares/apiKey';
+import authRoutes from './auth/auth.routes';
+import systemRoutes from './system/system.routes';
+import teacherRoutes from './teachers/teachers.routes';
+import studentRoutes from './students/students.routes';
+import groupRoutes from './groups/groups.routes';
+import usersRoutes from './users/users.routes';
+import schoolsRoutes from './schools/schools.routes';
+import eventsRoutes from './events/events.routes';
+import apiKeysRoutes from './security/api-keys.routes';
 
 const router = Router();
 
-interface HealthResponse {
-  status: 'ok';
-  timestamp: string;
-  services: {
-    postgres: 'connected' | 'disconnected';
-    mongo: 'connected' | 'disconnected';
-    redis: RedisStatus;
-  };
-}
+// --- Public Routes ---
+router.use('/api', systemRoutes);
+router.use('/api/auth', authRoutes);
 
-router.get('/health', (_req: Request, res: Response<HealthResponse>) => {
-  const response: HealthResponse = {
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    services: {
-      postgres: AppDataSource.isInitialized ? 'connected' : 'disconnected',
-      mongo: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-      redis: getRedisStatus(),
-    },
-  };
+// --- Business Layer (Protected by Auth & API Key) ---
+const businessRouter = Router();
 
-  res.status(200).json(response);
-});
+businessRouter.use(requireAuth);
+
+businessRouter.use(requireApiKey);
+
+businessRouter.use('/teachers', teacherRoutes);
+businessRouter.use('/students', studentRoutes);
+businessRouter.use('/groups', groupRoutes);
+businessRouter.use('/users', requireGlobalOwner, usersRoutes);
+businessRouter.use('/schools', requireGlobalOwner, schoolsRoutes);
+businessRouter.use('/events', requireGlobalOwner, eventsRoutes);
+businessRouter.use('/security/api-keys', requireGlobalOwner, apiKeysRoutes);
+
+router.use('/api', businessRouter);
 
 export default router;

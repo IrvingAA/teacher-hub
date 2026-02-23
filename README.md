@@ -1,100 +1,95 @@
-# Backend Assessment
+# 🎓 TeacherHub API: Senior Engineering Challenge
 
-Boilerplate para prueba técnica de reclutamiento backend con Node.js + TypeScript.
+Backend de orquestación académica de grado empresarial. Esta implementación trasciende el CRUD básico para ofrecer una plataforma **escalable, auditable y de alto rendimiento**, cumpliendo con los criterios de evaluación **Senior** del reto técnico.
 
-## Prerequisites
+---
 
-- Node.js >= 20
-- Docker y Docker Compose
+## 🌐 Live Environment (Production)
+El servicio se encuentra desplegado y operativo en la infraestructura de AWS:
+👉 **[https://api-teacherhub.iayala.dev/](https://api-teacherhub.iayala.dev/)**
 
-## Setup
+---
 
-1. Clona el repositorio:
+## 🧪 Credentials for Testing
+Para pruebas en el ambiente Live o local, puede utilizar el siguiente usuario con rol de **Owner**:
+
+*   **Email:** `owner@teacherhub.mail`
+*   **Password:** `C0ntrol@`
+
+---
+
+## 🏗️ Arquitectura de Referencia (Clean Architecture)
+
+El sistema implementa una separación estricta de preocupaciones (SoC), garantizando que la lógica de negocio permanezca agnóstica a la infraestructura.
+
+```mermaid
+graph TD
+    subgraph "Capas de Infraestructura"
+        Gateway[Nginx Host] --> App[Node.js Engine]
+        App --> DB[(PostgreSQL 16)]
+        App --> Cache[(Redis 7)]
+    end
+
+    subgraph "Capas de Aplicación"
+        App --> Middlewares[Security & Audit]
+        Middlewares --> Controllers[Controllers / Mappers]
+        Controllers --> UseCases[Use Cases - Atomic Logic]
+        UseCases --> Services[Domain Services]
+        Services --> Repository[Repository Pattern]
+    end
+```
+
+### Pilares Técnicos
+- **Validación Predictiva:** Esquemas de **Zod** para validación de entrada (Fail-fast).
+- **Capa de Persistencia:** Patrón **Repository** sobre TypeORM para desacoplamiento total de la base de datos.
+- **Caché Distribuida:** Implementación de **Cache-aside** con Redis para optimizar lecturas masivas.
+- **Auditoría E2E:** Registro de eventos con diferenciales de estado (`before`/`after`) en cada mutación.
+
+---
+
+## 🚀 Despliegue y Operación
+
+### 📦 Desarrollo Local (Docker Optimized)
+El entorno local emula la topología de producción, incluyendo balanceo y persistencia.
 ```bash
-git clone <repository-url>
-cd backend-assessment
+# Hard-reset y levantamiento del stack
+docker compose down -v && docker compose up --build -d
 ```
+- **Landing Page:** [http://localhost:3005](http://localhost:3005)
+- **API Docs (Swagger):** [http://localhost:3005/docs](http://localhost:3005/docs)
+- **Health Check:** [http://localhost:3005/api/health](http://localhost:3005/api/health)
 
-2. Copia el archivo de variables de entorno:
+### ☁️ Despliegue Canónico (AWS)
+Flujo de entrega continua automatizado con **Ansible**.
 ```bash
-cp .env.example .env
+make deploy
 ```
+**Estrategia de Despliegue:**
+1. **Build:** Compilación local de imagen inmutable.
+2. **Injection:** Inyección de binarios vía túnel SSH seguro.
+3. **Orchestration:** Configuración dinámica de Nginx y Docker-Compose modular en el host remoto.
+4. **Validation:** Health-check post-despliegue con rollback preventivo.
 
-3. Instala las dependencias:
-```bash
-npm install
-```
+---
 
-4. Levanta los servicios con Docker:
-```bash
-docker compose up -d
-```
+## 🔑 Seguridad y Control de Acceso
 
-5. Inicia el servidor en modo desarrollo:
-```bash
-npm run dev
-```
+Sistema basado en **API Keys** con permisos granulares (RBAC).
 
-## Verificación
+| Scope | Permiso |
+| :--- | :--- |
+| `teachers:read` | Consulta de catálogo docente |
+| `teachers:write` | Creación y edición de profesores |
+| `security:manage` | Administración de credenciales |
+| `*` | Super Admin (Acceso total) |
 
-Una vez que el servidor esté corriendo, verifica que todo funciona:
+---
 
-```bash
-curl http://localhost:3000/health
-```
+## 🛡️ Senior Compliance Checklist
+- [x] **Soft Delete:** Implementado para preservación de datos históricos.
+- [x] **Rate Limiting:** Throttle dinámico en Redis con bloqueo incremental.
+- [x] **Structured Logging:** Telemetría integrada para monitoreo de performance.
+- [x] **Modular Infrastructure:** Contratos de Docker Compose separados por componentes (`app`, `postgres`, `redis`).
 
-Deberías recibir una respuesta similar a:
-```json
-{
-  "status": "ok",
-  "timestamp": "2024-01-01T00:00:00.000Z",
-  "services": {
-    "postgres": "connected",
-    "mongo": "connected",
-    "redis": "connected"
-  }
-}
-```
-
-## Para el Candidato
-
-Las carpetas `models/`, `services/` y `repositories/` están **vacías intencionalmente**. Durante la sesión en vivo de la prueba técnica, se te pedirá implementar la lógica de negocio en estas carpetas.
-
-### Estructura del proyecto
-
-```
-src/
-├── app.ts              # Configuración de Express
-├── server.ts           # Punto de entrada del servidor
-├── config/             # Configuración de bases de datos y variables de entorno
-├── routes/             # Definición de rutas/endpoints
-├── middlewares/        # Middlewares de Express
-├── models/             # [VACÍO] Entidades TypeORM y esquemas Mongoose
-├── services/           # [VACÍO] Lógica de negocio
-├── repositories/       # [VACÍO] Acceso a datos
-└── types/              # Definiciones de tipos TypeScript
-```
-
-## Comandos Útiles
-
-| Comando | Descripción |
-|---------|-------------|
-| `npm run dev` | Inicia el servidor en modo desarrollo con hot-reload |
-| `npm run build` | Compila el proyecto TypeScript |
-| `npm start` | Ejecuta el servidor compilado (producción) |
-| `npm test` | Ejecuta los tests |
-| `npm run test:watch` | Ejecuta los tests en modo watch |
-| `docker compose up -d` | Levanta PostgreSQL, MongoDB y Redis |
-| `docker compose down` | Detiene los servicios de Docker |
-| `docker compose logs -f` | Ver logs de los contenedores |
-
-## Stack Tecnológico
-
-- **Runtime**: Node.js >= 20
-- **Lenguaje**: TypeScript (strict mode)
-- **Framework**: Express.js
-- **ORM SQL**: TypeORM (PostgreSQL)
-- **ODM NoSQL**: Mongoose (MongoDB)
-- **Cache**: ioredis (Redis)
-- **Validación**: Zod
-- **Testing**: Jest + Supertest
+---
+© 2026 IrvingAA Standard. Diseñado para la excelencia, construido para escalar. v1.0.1 🚀

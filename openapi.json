@@ -1,0 +1,2514 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "TeacherHub Backend API",
+    "version": "1.0.0",
+    "description": "Backend assessment boilerplate for Node.js + TypeScript technical tests\n\n### Quickstart\n1. Login using `POST /api/auth/login` to get a JWT.\n2. Create an API key using `POST /api/security/api-keys` (owner token required).\n3. Click **Authorize** in Swagger UI and set:\n   - `bearerAuth`: `Bearer <jwt>`\n   - `apiKeyAuth`: `<full_api_key>`\n4. Test protected endpoints (`/api/users`, `/api/schools`, `/api/teachers`, `/api/events`).\n\nSecurity model:\n- `POST /api/auth/login`: public\n- `/api/security/api-keys`: `bearerAuth`\n- Other `/api/*`: `bearerAuth + apiKeyAuth`"
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Current server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Authentication endpoints"
+    },
+    {
+      "name": "Security",
+      "description": "API key management endpoints"
+    },
+    {
+      "name": "Users",
+      "description": "User and tenant membership management endpoints"
+    },
+    {
+      "name": "Schools",
+      "description": "Tenant school management endpoints"
+    },
+    {
+      "name": "Teachers",
+      "description": "Teacher management endpoints"
+    },
+    {
+      "name": "Events",
+      "description": "Telemetry and audit event endpoints"
+    },
+    {
+      "name": "System",
+      "description": "Operational endpoints"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      },
+      "apiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Api-Key"
+      }
+    },
+    "schemas": {
+      "StandardResponseMeta": {
+        "type": "object",
+        "properties": {
+          "dateTime": {
+            "type": "string",
+            "example": "2026-02-18 19:22:58"
+          },
+          "httpCode": {
+            "type": "integer",
+            "example": 200
+          },
+          "alert": {
+            "type": "string",
+            "enum": [
+              "positive",
+              "negative",
+              "warning",
+              "info"
+            ],
+            "example": "positive"
+          },
+          "title": {
+            "type": "string",
+            "example": "Correcto"
+          },
+          "message": {
+            "type": "string",
+            "example": "Consulta completada correctamente."
+          }
+        },
+        "required": [
+          "dateTime",
+          "httpCode",
+          "alert",
+          "title",
+          "message"
+        ]
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "ok"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "services": {
+            "type": "object",
+            "properties": {
+              "postgres": {
+                "type": "string",
+                "enum": [
+                  "connected",
+                  "disconnected"
+                ]
+              },
+              "redis": {
+                "type": "string",
+                "enum": [
+                  "connected",
+                  "disconnected"
+                ]
+              }
+            },
+            "required": [
+              "postgres",
+              "redis"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "timestamp",
+          "services"
+        ]
+      },
+      "LoginRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "owner@teacherhub.mail"
+          },
+          "password": {
+            "type": "string",
+            "example": "your-password"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "tokenType": {
+            "type": "string",
+            "example": "Bearer"
+          },
+          "expiresIn": {
+            "type": "string",
+            "example": "1h"
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "globalRole": {
+                "type": "string",
+                "enum": [
+                  "owner",
+                  "user"
+                ],
+                "example": "user"
+              },
+              "tenantId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "admin",
+                  "teacher",
+                  "student"
+                ]
+              },
+              "memberships": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "schoolId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "example": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+                    },
+                    "schoolName": {
+                      "type": "string",
+                      "example": "TeacherHub Academy"
+                    },
+                    "role": {
+                      "type": "string",
+                      "enum": [
+                        "admin",
+                        "teacher",
+                        "student"
+                      ]
+                    },
+                    "isDefault": {
+                      "type": "boolean",
+                      "example": true
+                    }
+                  },
+                  "required": [
+                    "schoolId",
+                    "schoolName",
+                    "role",
+                    "isDefault"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "id",
+              "email",
+              "globalRole",
+              "tenantId",
+              "role",
+              "memberships"
+            ]
+          }
+        },
+        "required": [
+          "accessToken",
+          "tokenType",
+          "expiresIn",
+          "user"
+        ]
+      },
+      "LoginStandardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StandardResponseMeta"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/LoginResponse"
+              }
+            },
+            "required": [
+              "data"
+            ]
+          }
+        ]
+      },
+      "Teacher": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "schoolId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "specialization": {
+            "type": "string"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "hireDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive",
+              "on_leave"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "schoolId",
+          "email",
+          "firstName",
+          "lastName",
+          "specialization",
+          "hireDate",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "CreateTeacherRequest": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "schoolId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "firstName": {
+            "type": "string",
+            "minLength": 2
+          },
+          "lastName": {
+            "type": "string",
+            "minLength": 2
+          },
+          "specialization": {
+            "type": "string",
+            "minLength": 2
+          },
+          "phoneNumber": {
+            "type": "string",
+            "example": "+1 555 123 4567"
+          },
+          "hireDate": {
+            "type": "string",
+            "format": "date",
+            "example": "2024-08-15"
+          }
+        },
+        "required": [
+          "userId",
+          "schoolId",
+          "firstName",
+          "lastName",
+          "specialization",
+          "hireDate"
+        ]
+      },
+      "UpdateTeacherRequest": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "minLength": 2
+          },
+          "lastName": {
+            "type": "string",
+            "minLength": 2
+          },
+          "specialization": {
+            "type": "string",
+            "minLength": 2
+          },
+          "phoneNumber": {
+            "type": "string"
+          },
+          "hireDate": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "UpdateTeacherStatusRequest": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive",
+              "on_leave"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "example": 1
+          },
+          "limit": {
+            "type": "integer",
+            "example": 10
+          },
+          "total": {
+            "type": "integer",
+            "example": 42
+          },
+          "totalPages": {
+            "type": "integer",
+            "example": 5
+          }
+        },
+        "required": [
+          "page",
+          "limit",
+          "total",
+          "totalPages"
+        ]
+      },
+      "TeachersListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Teacher"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        },
+        "required": [
+          "data",
+          "pagination"
+        ]
+      },
+      "TeacherStandardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StandardResponseMeta"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/Teacher"
+              }
+            },
+            "required": [
+              "data"
+            ]
+          }
+        ]
+      },
+      "TeachersListStandardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StandardResponseMeta"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/TeachersListResponse"
+              }
+            },
+            "required": [
+              "data"
+            ]
+          }
+        ]
+      },
+      "TeacherDeleteStandardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StandardResponseMeta"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              }
+            },
+            "required": [
+              "data"
+            ]
+          }
+        ]
+      },
+      "UserMembership": {
+        "type": "object",
+        "properties": {
+          "schoolId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+          },
+          "schoolName": {
+            "type": "string",
+            "example": "TeacherHub Academy"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "teacher",
+              "student"
+            ]
+          },
+          "isDefault": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "schoolId",
+          "schoolName",
+          "role",
+          "isDefault"
+        ]
+      },
+      "UserMembershipInput": {
+        "type": "object",
+        "properties": {
+          "schoolId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+          },
+          "schoolName": {
+            "type": "string",
+            "example": "TeacherHub Academy"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "teacher",
+              "student"
+            ]
+          },
+          "isDefault": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "schoolId",
+          "schoolName",
+          "role"
+        ]
+      },
+      "UserProfileResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "globalRole": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "user"
+            ],
+            "example": "user"
+          },
+          "tenantId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "teacher",
+              "student"
+            ]
+          },
+          "memberships": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserMembershipInput"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "globalRole",
+          "tenantId",
+          "role",
+          "memberships",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "CreateUserRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 4
+          },
+          "globalRole": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "user"
+            ],
+            "default": "user"
+          },
+          "memberships": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserMembershipInput"
+            }
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "memberships"
+        ]
+      },
+      "UpdateUserRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 4
+          },
+          "globalRole": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "user"
+            ]
+          },
+          "memberships": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserMembership"
+            }
+          }
+        }
+      },
+      "UsersListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserProfileResponse"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        },
+        "required": [
+          "data",
+          "pagination"
+        ]
+      },
+      "UserStandardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StandardResponseMeta"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/UserProfileResponse"
+              }
+            },
+            "required": [
+              "data"
+            ]
+          }
+        ]
+      },
+      "UsersListStandardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StandardResponseMeta"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/UsersListResponse"
+              }
+            },
+            "required": [
+              "data"
+            ]
+          }
+        ]
+      },
+      "UserDeleteStandardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StandardResponseMeta"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              }
+            },
+            "required": [
+              "data"
+            ]
+          }
+        ]
+      },
+      "School": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "example": "TeacherHub Academy"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "isActive",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "CreateSchoolRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 160
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": true
+          },
+          "adminUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "setAdminAsDefaultMembership": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateSchoolRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 160
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SchoolsListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/School"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        },
+        "required": [
+          "data",
+          "pagination"
+        ]
+      },
+      "SchoolStandardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StandardResponseMeta"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/School"
+              }
+            },
+            "required": [
+              "data"
+            ]
+          }
+        ]
+      },
+      "SchoolsListStandardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StandardResponseMeta"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/SchoolsListResponse"
+              }
+            },
+            "required": [
+              "data"
+            ]
+          }
+        ]
+      },
+      "SchoolDeleteStandardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StandardResponseMeta"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              }
+            },
+            "required": [
+              "data"
+            ]
+          }
+        ]
+      },
+      "Event": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "requestId": {
+            "type": "string",
+            "nullable": true
+          },
+          "tenantId": {
+            "type": "string",
+            "nullable": true
+          },
+          "actorUserId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "request",
+              "audit"
+            ]
+          },
+          "action": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string",
+            "nullable": true
+          },
+          "path": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "nullable": true
+          },
+          "resourceType": {
+            "type": "string",
+            "nullable": true
+          },
+          "resourceId": {
+            "type": "string",
+            "nullable": true
+          },
+          "ip": {
+            "type": "string",
+            "nullable": true
+          },
+          "userAgent": {
+            "type": "string",
+            "nullable": true
+          },
+          "browser": {
+            "type": "string",
+            "nullable": true
+          },
+          "os": {
+            "type": "string",
+            "nullable": true
+          },
+          "before": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": true
+          },
+          "after": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": true
+          },
+          "changes": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": true
+          },
+          "metadata": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "category",
+          "action",
+          "createdAt"
+        ]
+      },
+      "EventsListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        },
+        "required": [
+          "data",
+          "pagination"
+        ]
+      },
+      "EventStandardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StandardResponseMeta"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/Event"
+              }
+            },
+            "required": [
+              "data"
+            ]
+          }
+        ]
+      },
+      "EventsListStandardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StandardResponseMeta"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/EventsListResponse"
+              }
+            },
+            "required": [
+              "data"
+            ]
+          }
+        ]
+      },
+      "ApiKeyRecord": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "example": "frontend-dev"
+          },
+          "publicKey": {
+            "type": "string",
+            "example": "4fa9b73ac2f1a5f0"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true
+          },
+          "scopes": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "teachers:read",
+              "teachers:write"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "lastUsedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "publicKey",
+          "isActive",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "CreateApiKeyRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 60
+            },
+            "maxItems": 20
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "ApiKeyCreatePayload": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "publicKey": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string",
+            "example": "thk_4fa9b73ac2f1a5f0.e7f4f515f7d7bb4fc2c0ff7f4dd020fc7c0f3b8ca8aa9a4f"
+          },
+          "scopes": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string"
+            }
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "publicKey",
+          "key",
+          "isActive",
+          "createdAt"
+        ]
+      },
+      "ApiKeyCreateStandardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StandardResponseMeta"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/ApiKeyCreatePayload"
+              }
+            },
+            "required": [
+              "data"
+            ]
+          }
+        ]
+      },
+      "ApiKeyListStandardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StandardResponseMeta"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ApiKeyRecord"
+                }
+              }
+            },
+            "required": [
+              "data"
+            ]
+          }
+        ]
+      },
+      "ApiKeyRevokeStandardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StandardResponseMeta"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              }
+            },
+            "required": [
+              "data"
+            ]
+          }
+        ]
+      },
+      "UnauthorizedStandardResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StandardResponseMeta"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "nullable": true,
+                "type": "object"
+              }
+            },
+            "required": [
+              "data"
+            ]
+          }
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "string",
+                "example": "Validation failed"
+              },
+              "code": {
+                "type": "string",
+                "example": "VALIDATION_ERROR"
+              },
+              "statusCode": {
+                "type": "integer",
+                "example": 400
+              }
+            },
+            "required": [
+              "message",
+              "code",
+              "statusCode"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      }
+    }
+  },
+  "paths": {
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Authenticate user and return JWT token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              },
+              "example": {
+                "email": "owner@teacherhub.mail",
+                "password": "your-password"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginStandardResponse"
+                },
+                "example": {
+                  "dateTime": "2026-02-23 11:40:00",
+                  "httpCode": 200,
+                  "alert": "positive",
+                  "title": "Correcto",
+                  "message": "Autenticacion completada correctamente.",
+                  "data": {
+                    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "tokenType": "Bearer",
+                    "expiresIn": "1h"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "postApiAuthLogin"
+      }
+    },
+    "/api/security/api-keys": {
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "summary": "Create API key",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyRequest"
+              },
+              "example": {
+                "name": "frontend-dev",
+                "scopes": [
+                  "teachers:read",
+                  "teachers:write"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "API key created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyCreateStandardResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postApiSecurityApi_keys"
+      },
+      "get": {
+        "tags": [
+          "Security"
+        ],
+        "summary": "List API keys",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API key list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyListStandardResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getApiSecurityApi_keys"
+      }
+    },
+    "/api/security/api-keys/{id}": {
+      "delete": {
+        "tags": [
+          "Security"
+        ],
+        "summary": "Revoke API key",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API key revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyRevokeStandardResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "deleteApiSecurityApi_keysId"
+      }
+    },
+    "/api/users": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Create user with tenant memberships",
+        "security": [
+          {
+            "bearerAuth": [],
+            "apiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserStandardResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postApiUsers"
+      },
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "List users",
+        "security": [
+          {
+            "bearerAuth": [],
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "globalRole",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "owner",
+                "user"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "schoolId",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sortBy",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "email",
+                "createdAt",
+                "updatedAt"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "sortOrder",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Users list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsersListStandardResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getApiUsers"
+      }
+    },
+    "/api/users/{id}": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get user by id",
+        "security": [
+          {
+            "bearerAuth": [],
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserStandardResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getApiUsersId"
+      },
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Update user and memberships",
+        "security": [
+          {
+            "bearerAuth": [],
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserStandardResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "putApiUsersId"
+      },
+      "delete": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Delete user",
+        "security": [
+          {
+            "bearerAuth": [],
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDeleteStandardResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "deleteApiUsersId"
+      }
+    },
+    "/api/schools": {
+      "post": {
+        "tags": [
+          "Schools"
+        ],
+        "summary": "Create tenant school (optionally assign an admin user)",
+        "security": [
+          {
+            "bearerAuth": [],
+            "apiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSchoolRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "School created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchoolStandardResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postApiSchools"
+      },
+      "get": {
+        "tags": [
+          "Schools"
+        ],
+        "summary": "List schools",
+        "security": [
+          {
+            "bearerAuth": [],
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isActive",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sortBy",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "name",
+                "createdAt",
+                "updatedAt"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "sortOrder",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Schools list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchoolsListStandardResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getApiSchools"
+      }
+    },
+    "/api/schools/{id}": {
+      "get": {
+        "tags": [
+          "Schools"
+        ],
+        "summary": "Get school by id",
+        "security": [
+          {
+            "bearerAuth": [],
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "School found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchoolStandardResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getApiSchoolsId"
+      },
+      "put": {
+        "tags": [
+          "Schools"
+        ],
+        "summary": "Update school",
+        "security": [
+          {
+            "bearerAuth": [],
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSchoolRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "School updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchoolStandardResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "putApiSchoolsId"
+      },
+      "delete": {
+        "tags": [
+          "Schools"
+        ],
+        "summary": "Delete school",
+        "security": [
+          {
+            "bearerAuth": [],
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "School deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchoolDeleteStandardResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "deleteApiSchoolsId"
+      }
+    },
+    "/api/teachers": {
+      "post": {
+        "tags": [
+          "Teachers"
+        ],
+        "summary": "Create teacher",
+        "security": [
+          {
+            "bearerAuth": [],
+            "apiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTeacherRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Teacher created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherStandardResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postApiTeachers"
+      },
+      "get": {
+        "tags": [
+          "Teachers"
+        ],
+        "summary": "List teachers",
+        "security": [
+          {
+            "bearerAuth": [],
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "schoolId",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "userId",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "inactive",
+                "on_leave"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "specialization",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sortBy",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "firstName",
+                "lastName",
+                "hireDate",
+                "createdAt"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "sortOrder",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Teachers list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeachersListStandardResponse"
+                },
+                "example": {
+                  "dateTime": "2026-02-23 11:40:00",
+                  "httpCode": 200,
+                  "alert": "positive",
+                  "title": "Correcto",
+                  "message": "Consulta completada correctamente.",
+                  "data": {
+                    "data": [
+                      {
+                        "id": "55555555-5555-4555-8555-555555555555",
+                        "userId": "11111111-1111-4111-8111-111111111111",
+                        "schoolId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                        "email": "teacher@teacherhub.local",
+                        "firstName": "Demo",
+                        "lastName": "Teacher",
+                        "specialization": "Mathematics",
+                        "phoneNumber": "+1 555 100 2000",
+                        "hireDate": "2023-01-10",
+                        "status": "active",
+                        "createdAt": "2026-02-23T10:00:00.000Z",
+                        "updatedAt": "2026-02-23T10:00:00.000Z"
+                      }
+                    ],
+                    "pagination": {
+                      "page": 1,
+                      "limit": 10,
+                      "total": 1,
+                      "totalPages": 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getApiTeachers"
+      }
+    },
+    "/api/teachers/{id}": {
+      "get": {
+        "tags": [
+          "Teachers"
+        ],
+        "summary": "Get teacher by id",
+        "security": [
+          {
+            "bearerAuth": [],
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Teacher found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherStandardResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getApiTeachersId"
+      },
+      "put": {
+        "tags": [
+          "Teachers"
+        ],
+        "summary": "Update teacher",
+        "security": [
+          {
+            "bearerAuth": [],
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTeacherRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Teacher updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherStandardResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "putApiTeachersId"
+      },
+      "delete": {
+        "tags": [
+          "Teachers"
+        ],
+        "summary": "Soft delete teacher",
+        "security": [
+          {
+            "bearerAuth": [],
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Teacher removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherDeleteStandardResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "deleteApiTeachersId"
+      }
+    },
+    "/api/teachers/{id}/status": {
+      "patch": {
+        "tags": [
+          "Teachers"
+        ],
+        "summary": "Update teacher status",
+        "security": [
+          {
+            "bearerAuth": [],
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTeacherStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Teacher status updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherStandardResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "patchApiTeachersIdStatus"
+      }
+    },
+    "/api/events": {
+      "get": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "List telemetry/audit events",
+        "security": [
+          {
+            "bearerAuth": [],
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "request",
+                "audit"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "action",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "actorUserId",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "resourceType",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "resourceId",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "requestId",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "statusCode",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sortBy",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "createdAt",
+                "action",
+                "statusCode"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "sortOrder",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Events list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventsListStandardResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getApiEvents"
+      }
+    },
+    "/api/events/{id}": {
+      "get": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "Get event by id",
+        "security": [
+          {
+            "bearerAuth": [],
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventStandardResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getApiEventsId"
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Get service health status",
+        "description": "Returns runtime status for PostgreSQL and Redis.",
+        "responses": {
+          "200": {
+            "description": "Health payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getHealth"
+      }
+    }
+  }
+}
