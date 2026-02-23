@@ -53,7 +53,7 @@ jobs:
   build-and-push:
     name: Build & Push to GHCR
     needs: test
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.version.outputs.SERVICE_TAG }}
@@ -115,7 +115,7 @@ jobs:
   deploy-trigger:
     name: Trigger Infrastructure Deployment
     needs: build-and-push
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
     runs-on: ubuntu-latest
     environment: develop
     steps:
@@ -127,11 +127,11 @@ jobs:
           event-type: deploy-request
           client-payload: |-
             {
-              "service": "teacherhub-api",
-              "deployment": "develop",
-              "environment": "develop",
+              "service": "teacher-api",
+              "deployment": "",
+              "environment": "dev",
               "image_tag": "${{ needs.build-and-push.outputs.image_tag }}",
-              "source_repo": "${{ github.event.repository.name }}",
+              "source_repo": "${{ github.repository }}",
               "source_branch": "${{ github.ref_name }}",
               "source_sha": "${{ github.sha }}"
             }
